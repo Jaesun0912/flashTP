@@ -133,7 +133,6 @@ __global__ void triple_bwd_sptp_lienar_kernel_v2_shared_exp(
     const int path_idx_start = in1_related_path_idx[target_in1];
     const int path_idx_end = in1_related_path_idx[target_in1+1];
 
-    // using reg_dL_din1 for dummy => need to initialize ...
     unsigned long long in1_idx = src_idx*in1_size + in1_start+threadIdx.x;
     for(int shmem_idx = threadIdx.x; in1_idx < src_idx*in1_size + in1_end; shmem_idx+=WARPSIZE, in1_idx+=WARPSIZE) {
         shmem_scratch[shmem_idx] = in1[in1_idx];

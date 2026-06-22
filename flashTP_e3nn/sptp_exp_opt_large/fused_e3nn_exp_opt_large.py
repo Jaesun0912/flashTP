@@ -550,15 +550,15 @@ def kernel_init():
             t_per_exec_info,
         ) = ctx.saved_tensors
 
-        dF_in1 = grad_output[0]
-        dF_in2 = grad_output[1]
-        dF_w = grad_output[2]
+        dF_in1 = grad_output[0].contiguous()
+        dF_in2 = grad_output[1].contiguous()
+        dF_w = grad_output[2].contiguous()
 
         grad_list = torch.ops.flashtp_large_kernel.sptp_linear_bwd_bwd_v2_shared_exp(
             dF_in1,
             dF_in2,
             dF_w,
-            dE_dout.detach(),
+            dE_dout,
             in1,
             in2,
             weight,
@@ -816,10 +816,10 @@ def kernel_init():
             t_per_exec_info,
         ) = ctx.saved_tensors
 
-        dT_dGin1 = grad_output[0]
-        dT_dGin2 = grad_output[1]
-        dT_dGW = grad_output[2]
-        dT_dGLo = grad_output[3]
+        dT_dGin1 = grad_output[0].contiguous()
+        dT_dGin2 = grad_output[1].contiguous()
+        dT_dGW = grad_output[2].contiguous()
+        dT_dGLo = grad_output[3].contiguous()
 
         grad_list = torch.ops.flashtp_large_kernel.sptp_linear_triple_bwd_v2_shared_exp(
             dT_dGin1,
