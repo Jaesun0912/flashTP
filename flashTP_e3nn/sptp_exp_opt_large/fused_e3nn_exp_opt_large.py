@@ -558,7 +558,7 @@ def kernel_init():
             dF_in1,
             dF_in2,
             dF_w,
-            dE_dout,
+            (dE_dout if torch.is_grad_enabled() else dE_dout.detach()),
             in1,
             in2,
             weight,
