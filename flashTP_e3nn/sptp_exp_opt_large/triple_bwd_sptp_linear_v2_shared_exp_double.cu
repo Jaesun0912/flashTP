@@ -238,19 +238,19 @@ __global__ void triple_bwd_sptp_lienar_kernel_v2_shared_exp(
         // for nnz in the fiber
         // uchar4 fiber;
         for(ushort fiber_idx = fiber_idx_info.x; fiber_idx < fiber_idx_info.y; fiber_idx++){
-            // mult k with all w => dL_duvuv
+
             uchar4 fiber = fiber_array[fiber_idx]; // i, j, k, cg idx
 
-            //fwd_uvuv
+            //uvuv
             my_shmem_uvuv[fiber.z] += my_shmem_in1[fiber.x] * shmem_in2[path_info2.y+fiber.y] * unique_cg_val[fiber.w];
             
-            //dF_duvuv
+            //F_uvuv
             my_shmem_F_uvuv[fiber.z] += (my_shmem_dG_dLx[fiber.x] * shmem_in2[path_info2.y+fiber.y] + my_shmem_in1[fiber.x] * shmem_dG_dLy[path_info2.y+fiber.y]) * unique_cg_val[fiber.w];
 
             //TF_uvuv
             my_shmem_TF_uvuv[fiber.z] += (my_shmem_dG_dLx[fiber.x] * shmem_dT_dGin2[path_info2.y+fiber.y] + my_shmem_dT_dGin1[fiber.x] * shmem_dG_dLy[path_info2.y+fiber.y]) * unique_cg_val[fiber.w];
 
-            //T_duvuv
+            //T_uvuv
             my_shmem_T_uvuv[fiber.z] += (my_shmem_dT_dGin1[fiber.x] * shmem_in2[path_info2.y+fiber.y] + my_shmem_in1[fiber.x] * shmem_dT_dGin2[path_info2.y+fiber.y]) * unique_cg_val[fiber.w];
 
             double common_dE_dO_deriv = my_shmem_dL_dO[fiber.z] * unique_cg_val[fiber.w];
@@ -269,12 +269,6 @@ __global__ void triple_bwd_sptp_lienar_kernel_v2_shared_exp(
             my_shmem_dT_dgy[path_info2.y+fiber.y] += dE_dOuter * my_shmem_dT_dGin1[fiber.x] + (dT_dOuter_plus_dT_dGLo_W) * my_shmem_in1[fiber.x];
         }
 
-        // debugging
-        // for (int i =0, dldo_idx = g_t_dldo_start + path_info1.x + threadIdx.x*path_info2.x; i<path_info2.x; i++, dldo_idx++){
-        //     mem_debug[dldo_idx] = my_shmem_uvuv[i];
-        // }
-
-        // mem_dL_dW
         double reg_dT_dW = 0.0;
         double reg_dT_dgW = 0.0;
         for(int k_idx = 0; k_idx<path_info2.x; k_idx++){
@@ -284,24 +278,16 @@ __global__ void triple_bwd_sptp_lienar_kernel_v2_shared_exp(
         mem_dT_dW[weight_pos] = reg_dT_dW;
         mem_dT_dgW[weight_pos] = reg_dT_dgW;
 
-        // dF_dO
+        // dT_dLo
         // store out first in shared mem
         for(int i =0, shmem_idx = threadIdx.x*path_info2.x; i<path_info2.x; i++, shmem_idx++){
             shmem_scratch[shmem_idx] = my_shmem_TF_uvuv[i] * reg_w_path_norm + my_shmem_T_uvuv[i] * reg_F_w_path_norm + my_shmem_F_uvuv[i]*reg_T_w_path_norm;
         }
         __syncwarp();
-        // store out in main mem
-        // unsigned long long df_do_idx = g_t_dfdo_start+path_info1.x + threadIdx.x;
-        // for(int shmem_idx = threadIdx.x; df_do_idx< g_t_dfdo_start+ path_info1.y; df_do_idx+=WARPSIZE, shmem_idx+=WARPSIZE) {
-        //     mem_dF_dO[df_do_idx] = shmem_scratch[shmem_idx];
-        // }
-        // use atomic add
-        // for(int shmem_idx = threadIdx.x; out_idx < out_end; out_idx+=WARPSIZE, shmem_idx+=WARPSIZE){
 
         out_idx = out_start + threadIdx.x;
         for(int shmem_idx = threadIdx.x; out_idx < out_end; out_idx+=WARPSIZE, shmem_idx+=WARPSIZE) {
             atomicAdd(mem_dT_dLo+out_idx, shmem_scratch[shmem_idx]);
-            // mem_dF_dO[df_do_idx] = shmem_scratch[shmem_idx];
         }
     }
     
@@ -309,7 +295,7 @@ __global__ void triple_bwd_sptp_lienar_kernel_v2_shared_exp(
         shmem_scratch[shmem_idx] = my_shmem_dT_din1[i];
     }
     __syncwarp();
-    // store dL_dA in main mem
+    // store dT_din1 in main mem
     
    in1_idx = src_idx*in1_size + in1_start+threadIdx.x;
     for(int shmem_idx = threadIdx.x; in1_idx < src_idx*in1_size + in1_end; shmem_idx+=WARPSIZE, in1_idx+=WARPSIZE) {
@@ -321,7 +307,7 @@ __global__ void triple_bwd_sptp_lienar_kernel_v2_shared_exp(
         shmem_scratch[shmem_idx] = my_shmem_dT_dgx[i];
     }
     __syncwarp();
-    // store dL_dA in main mem
+    // store dT_dgx in main mem
     
    in1_idx = src_idx*in1_size + in1_start+threadIdx.x;
     for(int shmem_idx = threadIdx.x; in1_idx < src_idx*in1_size + in1_end; shmem_idx+=WARPSIZE, in1_idx+=WARPSIZE) {
